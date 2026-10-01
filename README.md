@@ -1,32 +1,55 @@
 # Gen-AI-Training-
 Health Care chatbot
 
-PDF
- ↓
-PyPDF
- ↓
-Text cleaning
- ↓
-Chunking
- ↓
-Tokenization  ← explain where this fits
- ↓
-Embedding model
- ↓
-Vector Store (FAISS)
- ↓
-User Query
- ↓
-Query Embedding
- ↓
-Similarity Search + Top-K
- ↓
-Re-ranking
- ↓
-Context
- ↓
-LLM
- ↓
-Temperature
- ↓
-Final Answer
+                     OFFLINE / INDEXING
+                     ==================
+
+                         PDF
+                          ↓
+                    PDF Extraction
+                          ↓
+                       Text
+                          ↓
+                  Cleaning/Normalization
+                          ↓
+                       Chunking
+                          ↓
+                     Tokenization
+                          ↓
+                  Embedding Model
+                          ↓
+                  Numerical Vectors
+                          ↓
+                    Vector Store
+                       FAISS
+                          │
+                          │
+                          │
+                 ONLINE / QUERY TIME
+                 ===================
+
+                     User Query
+                          ↓
+                    Query Embedding
+                          ↓
+                     Query Vector
+                          ↓
+                   Similarity Search
+                          ↓
+                       Top-K
+                          ↓
+                      Reranker
+                          ↓
+                 Relevant Chunks
+                          ↓
+                       Context
+                          ↓
+                  Prompt + Context
+                          ↓
+                         LLM
+                          ↓
+                     Temperature
+                          ↓
+                  Generated Answer
+                          ↓
+                         USER
