@@ -1,0 +1,228 @@
+
+# ============================================================
+# PDF LEVEL TF-IDF VECTOR + QUERY SIMILARITY
+# ============================================================
+
+import PyPDF2
+import nltk
+import numpy as np
+
+nltk.download("punkt")
+nltk.download("punkt_tab")
+nltk.download("stopwords")
+
+from nltk.tokenize import word_tokenize
+from nltk.corpus import stopwords
+from nltk.stem import PorterStemmer
+
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
+
+
+# ============================================================
+# 1. PDF FILES
+# ============================================================
+
+files = [
+    r"D:\gen_ai_projects_2026_AUG\Oracle_ai_alert_logs_analysis\gowtham\Crenlo_engineering_cabs.pdf",
+
+    r"D:\gen_ai_projects_2026_AUG\Oracle_ai_alert_logs_analysis\gowtham\CRENLO-Supplier-Quality-Manual-REV-3-8.1.26.pdf"
+]
+
+
+# ============================================================
+# 2. READ PDF FILES
+# ============================================================
+
+documents = []
+
+for file in files:
+
+    reader = PyPDF2.PdfReader(file)
+
+    text = ""
+
+    for page in reader.pages:
+        page_text = page.extract_text()
+
+        if page_text:
+            text += page_text + " "
+
+    documents.append(text)
+
+
+print("\n========================================")
+print("TOTAL PDFS:", len(documents))
+print("========================================")
+
+
+# ============================================================
+# 3. STOPWORDS + STEMMER
+# ============================================================
+
+stop_words = set(stopwords.words("english"))
+
+stemmer = PorterStemmer()
+
+
+# ============================================================
+# 4. PREPROCESS FUNCTION
+# ============================================================
+
+def preprocess(text):
+
+    tokens = word_tokenize(text.lower())
+
+    clean_tokens = []
+
+    for word in tokens:
+
+        # Keep only alphabetic words
+        # Remove stopwords
+        if word.isalpha() and word not in stop_words:
+
+            stem = stemmer.stem(word)
+
+            clean_tokens.append(stem)
+
+    return " ".join(clean_tokens)
+
+
+# ============================================================
+# 5. PREPROCESS EACH PDF
+# ============================================================
+
+processed_documents = []
+
+for doc in documents:
+
+    processed_text = preprocess(doc)
+
+    processed_documents.append(processed_text)
+
+
+print("\n========================================")
+print("PDF PREPROCESSING COMPLETED")
+print("========================================")
+
+
+# ============================================================
+# 6. TF-IDF VECTORIZER
+# ============================================================
+
+vectorizer = TfidfVectorizer()
+
+
+# IMPORTANT:
+# Each PDF is treated as ONE document
+#
+# PDF A → Vector A
+# PDF B → Vector B
+
+tfidf_matrix = vectorizer.fit_transform(processed_documents)
+
+
+# ============================================================
+# 7. DISPLAY VOCABULARY
+# ============================================================
+
+print("\n========================================")
+print("TF-IDF VOCABULARY")
+print("========================================")
+
+feature_names = vectorizer.get_feature_names_out()
+
+print(feature_names)
+
+
+# ============================================================
+# 8. DISPLAY INDIVIDUAL PDF VECTORS
+# ============================================================
+
+print("\n========================================")
+print("PDF VECTORS")
+print("========================================")
+
+
+for i, file in enumerate(files):
+
+    print("\nPDF:", file)
+
+    print("Vector shape:", tfidf_matrix[i].shape)
+
+    print("Vector:")
+
+    print(tfidf_matrix[i].toarray())
+
+
+# ============================================================
+# 9. ASK USER QUESTION
+# ============================================================
+
+query = input("\nAsk question: ")
+
+
+# ============================================================
+# 10. PREPROCESS QUERY
+# ============================================================
+
+processed_query = preprocess(query)
+
+print("\nProcessed Query:")
+print(processed_query)
+
+
+# ============================================================
+# 11. CONVERT QUERY INTO TF-IDF VECTOR
+# ============================================================
+
+query_vector = vectorizer.transform([processed_query])
+
+
+print("\n========================================")
+print("QUERY VECTOR")
+print("========================================")
+
+print(query_vector.toarray())
+
+
+# ============================================================
+# 12. QUERY VS PDF SIMILARITY
+# ============================================================
+
+similarities = cosine_similarity(
+    query_vector,
+    tfidf_matrix
+)
+
+
+print("\n========================================")
+print("QUERY VS PDF SIMILARITY")
+print("========================================")
+
+
+for i, file in enumerate(files):
+
+    score = similarities[0][i]
+
+    print("\nPDF:", file)
+
+    print("Similarity:", score)
+
+
+# ============================================================
+# 13. FIND BEST PDF
+# ============================================================
+
+best_match = np.argmax(similarities[0])
+
+best_score = similarities[0][best_match]
+
+
+print("\n========================================")
+print("BEST MATCH")
+print("========================================")
+
+print("PDF:", files[best_match])
+
+print("Similarity Score:", best_score)
