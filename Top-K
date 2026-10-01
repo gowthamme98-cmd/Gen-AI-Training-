@@ -1,0 +1,141 @@
+#top_k =  5  (0.95,0.90.0.80,0.40,0.35)
+# threshold ???     = 0.70 
+
+import PyPDF2  #reading  the PDF  
+import nltk  # natural lanuage tool kit 
+import numpy as np
+import pandas as pd
+nltk.download("punkt")
+nltk.download("punkt_tab")
+nltk.download('stopwords')
+
+from nltk.tokenize import word_tokenize, sent_tokenize
+from nltk.corpus import stopwords
+from nltk.stem import PorterStemmer
+
+# Download the stop words list if not already present
+from sklearn.feature_extraction.text import TfidfVectorizer  #scikit learn 
+from sklearn.metrics.pairwise import cosine_similarity
+
+files = [
+    r"C:\Users\kumar\Downloads\vc\pdfs\Employee_Attendance_Policy.pdf",
+    r"C:\Users\kumar\Downloads\vc\pdfs\Employee_Conduct_Policy.pdf",
+    r"C:\Users\kumar\Downloads\vc\pdfs\HR_Policy_Document.pdf",
+    r"C:\Users\kumar\Downloads\vc\pdfs\IT_Security_Policy.pdf",
+    r"C:\Users\kumar\Downloads\vc\pdfs\Workplace_Safety_Policy.pdf"
+]
+#[a,b,c,d,e]
+documents = []
+
+for a in files:
+    reader = PyPDF2.PdfReader(a)
+    text = ""
+    for page in reader.pages:
+        text += page.extract_text()
+    documents.append(text)
+
+
+#print(documents)
+
+print("total documents " , len(documents)) #5 files , 5 elements
+
+sentences = []
+
+for doc in documents:
+    sents = sent_tokenize(doc)
+    for s in sents:
+        sentences.append(s)
+
+print("total sentences : " ,len(sentences))
+
+#total documents  5
+#total sentences :  204
+
+stop_words = set(stopwords.words('english'))
+stemmer = PorterStemmer()
+
+#print(stop_words)
+
+#print(stopwords.fileids())
+
+
+#udf::
+
+def preprocess(text):
+    tokens = word_tokenize(text.lower())
+    clean_tokens = []
+    for word in tokens:
+        if word.isalpha() and word not in stop_words:
+            stem = stemmer.stem(word)
+            clean_tokens.append(stem)
+    return " ".join(clean_tokens)
+
+processed_sentences = []
+
+for s in sentences:
+    processed_sentences.append(preprocess(s))
+
+#print(sentences[:3])
+#print(processed_sentences[:3])
+
+vectorizer = TfidfVectorizer()
+
+tfidf_matrix = vectorizer.fit_transform(processed_sentences)
+
+#print(tfidf_matrix)
+
+query = input("ask question : ")
+
+processed_query = preprocess(query)
+
+query_vector = vectorizer.transform([processed_query])
+
+print(query_vector)
+#print(query_vector)
+
+similarities = cosine_similarity(query_vector , tfidf_matrix)
+
+scores = similarities[0]
+
+#print(scores)
+# [204 sentences -> similarity score ]
+top_k = 5
+
+threshold = 0.3
+
+scores_series = pd.Series(scores)
+# [ ?? ]
+# 0 -> 0.42 . . .  203 --> 0.6
+
+#print(scores_series)
+
+top_indices = scores_series.nlargest(top_k).index
+
+print(top_indices)
+
+#Index([11, 98, 61, 134, 0], dtype='int64')
+
+#context limit --> say how many words in need it in the output 
+#llm : 5 topk --> output word limit am defining here 
+
+context = ""
+
+max_words = 50
+
+current_words = 0
+found = False
+
+for idx in top_indices:
+    if scores[idx] >=  threshold:
+        sentence = sentences[idx]
+        word_count = len(sentence.split())
+
+        if current_words + word_count <= max_words:  # 0+30 =30 < 150
+            context += sentence + " "
+            current_words += word_count  # curr_word = 0 + 30 
+            found = True
+
+if not found:
+    print(" No related information found in the document")
+else:
+    print(context)
