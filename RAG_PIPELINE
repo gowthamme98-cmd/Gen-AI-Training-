@@ -1,0 +1,237 @@
+from pypdf import PdfReader
+from sentence_transformers import SentenceTransformer
+from transformers import pipeline, AutoTokenizer
+import faiss
+import numpy as np
+
+
+# ============================================================
+# 1. READ PDF
+# ============================================================
+
+pdf_path = r"D:\gen_ai_projects_2026_AUG\Oracle_ai_alert_logs_analysis\gowtham\Employee_Attendance_Policy.pdf"
+
+reader = PdfReader(pdf_path)
+
+text = ""
+
+for page in reader.pages:
+    page_text = page.extract_text()
+
+    if page_text:
+        text += page_text + "\n"
+
+print("\n========== PDF TEXT ==========\n")
+print(text[:1000])
+
+
+# ============================================================
+# 2. CLEAN TEXT
+# ============================================================
+
+text = text.replace("\n", " ")
+text = " ".join(text.split())
+
+print("\n========== CLEAN TEXT ==========\n")
+print(text[:1000])
+
+
+# ============================================================
+# 3. CHUNKING
+# ============================================================
+
+words = text.split()
+
+chunk_size = 100
+overlap = 20
+
+chunks = []
+
+start = 0
+
+while start < len(words):
+
+    end = start + chunk_size
+
+    chunk = " ".join(words[start:end])
+
+    chunks.append(chunk)
+
+    start += chunk_size - overlap
+
+
+print("\n========== CHUNKS ==========\n")
+
+for i, chunk in enumerate(chunks):
+
+    print(f"\nChunk {i}:")
+    print(chunk[:300])
+
+
+# ============================================================
+# 4. TOKENIZATION
+# ============================================================
+
+tokenizer = AutoTokenizer.from_pretrained("gpt2")
+
+tokens = tokenizer.tokenize(chunks[0])
+
+print("\n========== TOKENS ==========\n")
+print(tokens[:50])
+
+
+# ============================================================
+# 5. EMBEDDING MODEL
+# ============================================================
+
+embedding_model = SentenceTransformer(
+    "all-MiniLM-L6-v2"
+)
+
+document_embeddings = embedding_model.encode(
+    chunks
+)
+
+document_embeddings = np.array(
+    document_embeddings
+).astype("float32")
+
+print("\n========== EMBEDDING ==========\n")
+print("Shape:", document_embeddings.shape)
+
+
+# ============================================================
+# 6. VECTOR STORE
+# ============================================================
+
+dimension = document_embeddings.shape[1]
+
+# Normalize for cosine similarity
+faiss.normalize_L2(document_embeddings)
+
+index = faiss.IndexFlatIP(dimension)
+
+index.add(document_embeddings)
+
+print("\n========== VECTOR STORE ==========\n")
+print("Vectors stored:", index.ntotal)
+
+
+# ============================================================
+# 7. USER QUERY
+# ============================================================
+
+query = input("\nAsk your question: ")
+
+print("\nUser Query:")
+print(query)
+
+
+# ============================================================
+# 8. QUERY EMBEDDING
+# ============================================================
+
+query_embedding = embedding_model.encode(
+    [query]
+)
+
+query_embedding = np.array(
+    query_embedding
+).astype("float32")
+
+faiss.normalize_L2(query_embedding)
+
+
+# ============================================================
+# 9. SIMILARITY SEARCH
+# ============================================================
+
+top_k = 3
+
+scores, indices = index.search(
+    query_embedding,
+    top_k
+)
+
+
+print("\n========== RETRIEVED CHUNKS ==========\n")
+
+retrieved_chunks = []
+
+for rank, (score, idx) in enumerate(
+    zip(scores[0], indices[0]),
+    start=1
+):
+
+    chunk = chunks[idx]
+
+    retrieved_chunks.append(chunk)
+
+    print(f"Rank: {rank}")
+    print(f"Score: {score:.4f}")
+    print(f"Chunk: {chunk[:500]}")
+    print("--------------------------------")
+
+
+# ============================================================
+# 10. BUILD CONTEXT
+# ============================================================
+
+context = "\n\n".join(
+    retrieved_chunks
+)
+
+
+# ============================================================
+# 11. CREATE PROMPT
+# ============================================================
+
+prompt = f"""
+You are a helpful document assistant.
+
+Answer the user's question using only the context below.
+
+If the answer is not available in the context,
+say that the information is not available in the document.
+
+Context:
+{context}
+
+Question:
+{query}
+
+Answer:
+"""
+
+
+# ============================================================
+# 12. LOAD LOCAL LLM
+# ============================================================
+
+generator = pipeline(
+    "text-generation",
+    model="gpt2"
+)
+
+
+# ============================================================
+# 13. GENERATE FINAL ANSWER
+# ============================================================
+
+result = generator(
+    prompt,
+    max_new_tokens=100,
+    temperature=0.2,
+    do_sample=True
+)
+
+
+# ============================================================
+# 14. PRINT FINAL ANSWER
+# ============================================================
+
+answer = result[0]["generated_text"]
+
+print("\n========== FINAL ANSWER ==========\n")
+
+print(answer)
