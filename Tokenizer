@@ -1,0 +1,29 @@
+Document -----> LLM
+
+Chunk
+ ↓
+Embedding model
+ ├── Tokenizer
+ ├── Transformer
+ └── Pooling
+       ↓
+    Embedding
+
+------------------
+
+User prompt -----> LLM
+
+Prompt
+ ↓
+LLM tokenizer
+ ↓
+Token IDs
+ ↓
+Transformer
+ ↓
+Next-token probabilities
+ ↓
+Generated tokens
+ ↓
+Text
+
